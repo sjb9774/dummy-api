@@ -1,8 +1,8 @@
 from app import app
-from data import RoutesProvider
+from routes import RoutesProvider
 
 
-route_provider = RoutesProvider("./routes.json.example")
+route_provider = RoutesProvider("./routes.json")
 
 
 @app.route("/")

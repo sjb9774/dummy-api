@@ -4,7 +4,7 @@
             "path": "/friends",
             "name": "friends",
             "data": {
-                "beers": [
+                "friends": [
                     {
                         "id": 1,
                         "first_name": "Stephen",
@@ -32,7 +32,7 @@
             "data": {
                 "reference": {
                     "source": "friends",
-                    "find": "beers.id"
+                    "find": "friends.id"
                 }
             }
         }
