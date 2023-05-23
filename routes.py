@@ -1,6 +1,33 @@
 import json
-from rules import  DynamicDataRule, SimpleDataRule, ReferenceDataRule
+from .rules import  DynamicDataRule, SimpleDataRule, ReferenceDataRule
 import typing
+
+
+class RouteRequest:
+
+    def __init__(
+        self,
+        request_path: str = None,
+        request_method: str = None,
+        query_parameters: dict = {},
+        request_body: dict = {}
+    ):
+        self.request_path = request_path
+        self.request_method = request_method
+        self.query_parameters = query_parameters
+        self.request_body = request_body
+    
+    def get_query_params(self) -> dict:
+        return self.query_parameters.copy()
+    
+    def get_request_path(self) -> str:
+        return self.request_path
+    
+    def get_request_method(self) -> str:
+        return self.request_method
+    
+    def get_request_body(self) -> dict:
+        return self.request_body
 
 
 class RouteRule:
@@ -9,8 +36,13 @@ class RouteRule:
         self.route_path = route_path.lstrip("/")
         self.data_rule = data_rule
 
-    def get_route_data(self, request_path, *args, **kwargs) -> dict:
-        return self.data_rule.get_data(request_path, *args, **kwargs)
+    def get_route_data(self, request: RouteRequest) -> dict:
+        return self.data_rule.get_data(
+            request.get_request_path(),
+            request_method=request.get_request_method(),
+            query_parameters=request.get_query_params(),
+            request_body=request.get_request_body()
+        )
     
     def get_route_path(self) -> str:
         return self.route_path
@@ -18,6 +50,9 @@ class RouteRule:
     @staticmethod
     def normalize_request_path(request_path: str):
         return request_path.strip("/")
+    
+    def can_handle_request(self, request: RouteRequest) -> bool:
+        return self.does_request_path_match_route(request.get_request_path())
     
     def does_request_path_match_route(self, request_path: str) -> bool:
         request_path = self.normalize_request_path(request_path)
@@ -87,10 +122,19 @@ class RoutesProvider:
             rules_list.append(rule)
         return rules_list
 
-    def get_route_response_data(self, request_path: str) -> str:
+    def handle_rule_chain(self):
+        pass
+
+    def get_route_response_data(self, request_path, request_method=None, query_parameters=None, request_body=None) -> str:
+        request = RouteRequest(
+            request_path=request_path,
+            request_method=request_method,
+            query_parameters=query_parameters,
+            request_body=request_body
+        )
         for rule in self.route_rules:
-            if rule.does_request_path_match_route(request_path):
-                return rule.get_route_data(request_path)
+            if rule.can_handle_request(request):
+                return rule.get_route_data(request)
         return "Not found"
 
 
