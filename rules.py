@@ -1,31 +1,12 @@
 import json
 import typing
 
-
-class SimpleDataRule:
-
-    def __init__(self, rule_data: dict):
-        self.rule_data = rule_data
-    
-    def get_default_value(self):
-        self.rule_data.get("default", None)
-    
-    def get_data_set(self):
-        return self.rule_data.get("data")
-    
-    def resolve_data(self):
-        return self.get_data_set() or self.get_default_value()
-
-    def get_data(self, request_path, request_method, query_parameters=None, request_body=None):
-        return self.resolve_data()
-
-
-class DynamicDataRule(SimpleDataRule):
+class DynamicDataRule:
     
     def __init__(self, data_resolver: callable):
         self.data_resolver = data_resolver
     
-    def get_data(self, request_path, request_method, query_parameters=None, request_body=None) -> str:
+    def get_data(self, *args, **kwargs) -> str:
         return self.data_resolver()
 
 
@@ -39,7 +20,7 @@ class ReferenceDataRule(DynamicDataRule):
     def get_reference_path_pieces(self) -> typing.List[str]:
         return self.reference_path.split(".")
     
-    def get_data(self, request_path, request_method, query_parameters=None, request_body=None):
+    def get_data(self, request_path, request_method=None, query_parameters=None, request_body=None):
         # TODO: Brittle, refactor to be more robust
         base_data = super().get_data(
             request_path,

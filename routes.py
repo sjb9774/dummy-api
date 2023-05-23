@@ -1,5 +1,5 @@
 import json
-from .rules import  DynamicDataRule, SimpleDataRule, ReferenceDataRule
+from .rules import DynamicDataRule, ReferenceDataRule
 import typing
 
 
@@ -32,7 +32,7 @@ class RouteRequest:
 
 class RouteRule:
 
-    def __init__(self, route_path: str, data_rule: SimpleDataRule):
+    def __init__(self, route_path: str, data_rule: DynamicDataRule):
         self.route_path = route_path.lstrip("/")
         self.data_rule = data_rule
 
