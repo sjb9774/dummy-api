@@ -1,0 +1,40 @@
+{
+    "routes": [
+        {
+            "path": "/friends",
+            "name": "friends",
+            "data": {
+                "friends": [
+                    {
+                        "id": 1,
+                        "first_name": "Stephen",
+                        "last_name": "Biston",
+                        "friend_since": "2023-01-05",
+                        "tags": ["cool", "tall", "handsome"]
+                    },
+                    {
+                        "id": 2,
+                        "first_name": "Edgar",
+                        "last_name": "Poe",
+                        "friend_since": "1809-01-09",
+                        "tags": ["old", "spooky"]
+                    }
+                ]
+            }
+        },
+        {
+            "path": "/friends/{id}",
+            "name": "friends_by_id",
+            "default": {
+                "error": true,
+                "message": "Not found"
+            },
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "friends.id"
+                }
+            }
+        }
+    ]
+}

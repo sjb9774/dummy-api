@@ -1,3 +1,5 @@
 .venv/
 __pycache__
 routes.json
+.pytest_cache
+.idea

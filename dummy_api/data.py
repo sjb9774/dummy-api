@@ -1,6 +1,18 @@
 import typing
 
 
+class ReferenceResolver:
+
+    def __init__(self, data_provider: callable, reference_path: str):
+        self.data_provider = data_provider
+        self.reference_path = reference_path
+
+    def __call__(self, *args, **kwargs):
+        data = self.data_provider()
+        #  TODO: Resolve data from path with optional kwargs
+        return data
+
+
 class MutableDataResolver:
 
     def __init__(self, base_data: dict):
@@ -34,7 +46,7 @@ class MutableDataResolver:
         for item in data_list:
             if str(item.get(field)) == str(value):
                 return item.copy() if copy else item
-        return None
+        return {}
 
     def update_item_in_list(self, list_data_path: str, identifier: str, update_data: dict):
         list_to_add_data: list = self.get_data_from_path(list_data_path, copy=False)
@@ -45,3 +57,6 @@ class MutableDataResolver:
 
     def remove_item_in_list(self, list_data_path: str, identifier: str):
         pass
+
+    def get_reference_resolver(self, reference_path: str) -> ReferenceResolver:
+        return ReferenceResolver(lambda: self.base_data, reference_path)

@@ -1,5 +1,5 @@
 import pytest
-from rules import DynamicDataRule, ReferenceDataRule
+from dummy_api.rules import DynamicDataRule, ReferenceDataRule
 
 
 class TestDynamicDataRules:
@@ -66,3 +66,9 @@ class TestReferenceDataRules:
         rule = ReferenceDataRule(self.data_resolver, "test.id.", self.default_data)
         assert rule.get_data("") == self.default_data
         assert rule.get_data("/anything/at/all") == self.default_data
+
+    def wip_test_create_reference(self):
+        Reference = type(object)
+        data_provider = lambda: "TBD"
+        reference = Reference(data_provider=data_provider, reference_path="data.items.id")
+        queried_data = reference.query_data(id=1)

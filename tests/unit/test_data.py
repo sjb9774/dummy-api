@@ -1,5 +1,5 @@
 import pytest
-from data import MutableDataResolver
+from dummy_api.data import MutableDataResolver
 
 base_data = {
     "routes": [

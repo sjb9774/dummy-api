@@ -1,8 +1,8 @@
 import json
 import typing
 
+
 class DynamicDataRule:
-    
     def __init__(self, data_resolver: callable):
         self.data_resolver = data_resolver
     
@@ -28,7 +28,7 @@ class ReferenceDataRule(DynamicDataRule):
             query_parameters=query_parameters,
             request_body=request_body
         )
-        request_path_pieces = request_path.split("/")
+        request_path_pieces = request_path.strip("/").split("/")
         i = 0
         for piece in self.get_reference_path_pieces():
             if piece in base_data:

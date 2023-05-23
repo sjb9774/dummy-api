@@ -1,31 +1,31 @@
 import json
-from .rules import DynamicDataRule, ReferenceDataRule
+from dummy_api.rules import DynamicDataRule, ReferenceDataRule
 import typing
 
 
 class RouteRequest:
 
     def __init__(
-        self,
-        request_path: str = None,
-        request_method: str = None,
-        query_parameters: dict = {},
-        request_body: dict = {}
+            self,
+            request_path: str = None,
+            request_method: str = None,
+            query_parameters: dict = {},
+            request_body: dict = {}
     ):
         self.request_path = request_path
         self.request_method = request_method
         self.query_parameters = query_parameters
         self.request_body = request_body
-    
+
     def get_query_params(self) -> dict:
-        return self.query_parameters.copy()
-    
+        return self.query_parameters.copy() if self.query_parameters else {}
+
     def get_request_path(self) -> str:
         return self.request_path
-    
+
     def get_request_method(self) -> str:
         return self.request_method
-    
+
     def get_request_body(self) -> dict:
         return self.request_body
 
@@ -43,22 +43,22 @@ class RouteRule:
             query_parameters=request.get_query_params(),
             request_body=request.get_request_body()
         )
-    
+
     def get_route_path(self) -> str:
         return self.route_path
-    
+
     @staticmethod
     def normalize_request_path(request_path: str):
         return request_path.strip("/")
-    
+
     def can_handle_request(self, request: RouteRequest) -> bool:
         return self.does_request_path_match_route(request.get_request_path())
-    
+
     def does_request_path_match_route(self, request_path: str) -> bool:
         request_path = self.normalize_request_path(request_path)
         tokenized_request = self.tokenize_request_path(request_path)
         tokenized_route = self.get_tokenized_route_path()
-        
+
         for i in range(len(tokenized_route)):
             route_token = tokenized_route[i]
             if route_token == "*":
@@ -71,13 +71,13 @@ class RouteRule:
         if len(tokenized_request) > i + 1:
             return False
         return True
-    
+
     def tokenize_request_path(self, request_path: str):
         return request_path.split("/")
-    
+
     def get_tokenized_route_path(self):
         return self.route_path.split("/")
-    
+
     @staticmethod
     def is_reference_rule(rule_config: dict) -> bool:
         return "reference" in rule_config.get("data", {})
@@ -99,7 +99,7 @@ class RouteRuleChain:
 
     def __init__(self, rules: typing.List[RouteRuleChainLink]) -> None:
         self.rule_chain_link = rules
-    
+
     def execute(self, request: RouteRequest):
         for rule_link in self.rule_chain_link:
             if rule_link.can_handle(request):
@@ -115,20 +115,26 @@ class RoutesProvider:
         self.route_rule_chain = self.build_route_rule_chain()
 
     @staticmethod
-    def get_data_file_contents(file_path: str):
+    def get_data_file_contents(file_path: str) -> dict:
         with open(file_path, "r") as f:
             return json.loads(f.read())
 
-    def get_data_resolver(self, data):
+    def get_data_resolver(self, data: dict) -> callable:
         base_data = data.get("data")
         if base_data.get("reference"):
             reference_data = base_data.get("reference")
             referenced_data_source = reference_data.get("source")
-            referenced_resolver = self.named_data_references[referenced_data_source]
-            return lambda: referenced_resolver()
+
+            def reference_resolver():
+                #
+                referenced_data_resolver = self.named_data_references[referenced_data_source]
+                return referenced_data_resolver()
+
+            return reference_resolver
         return lambda: base_data
 
-    def get_base_rule(self) -> RouteRule:
+    @staticmethod
+    def get_base_rule() -> RouteRule:
         rule = DynamicDataRule(lambda: "No data available")
         return RouteRule("*", rule)
 
@@ -143,7 +149,7 @@ class RoutesProvider:
             path = route_config_entry.get("path")
             name = route_config_entry.get("name")  # TODO: Track name for references
             route_data = route_config_entry.get("data")
-            data_resolver =  self.get_data_resolver(route_config_entry)
+            data_resolver = self.get_data_resolver(route_config_entry)
             is_reference = RouteRule.is_reference_rule(route_config_entry)
             if is_reference:
                 rule = RouteRuleBuilder.build_reference(
@@ -158,23 +164,25 @@ class RoutesProvider:
             rules_list.append(rule)
         return rules_list
 
-    def get_route_response_data(self, request_path, request_method=None, query_parameters=None, request_body=None) -> str:
+    def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
+                                request_body=None) -> str:
         request = RouteRequest(
             request_path=request_path,
             request_method=request_method,
             query_parameters=query_parameters,
             request_body=request_body
         )
-        return self.route_rule_chain.execute(request) or "Not found"  # TODO: Add baseline rule that handles all requests with "Not found"
+        return self.route_rule_chain.execute(
+            request) or "Not found"  # TODO: Add baseline rule that handles all requests with "Not found"
 
 
 class RouteRuleBuilder:
-    
+
     @staticmethod
     def build_rule(path: str, data_resolver: callable) -> RouteRule:
         data_rule = DynamicDataRule(data_resolver)
         return RouteRule(path, data_rule)
-    
+
     @staticmethod
     def build_reference(path: str, data_resolver: callable, reference_path: str, default_data: dict) -> RouteRule:
         data_rule = ReferenceDataRule(data_resolver, reference_path, default_data)

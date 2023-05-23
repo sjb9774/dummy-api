@@ -1,5 +1,5 @@
-from .app import app
-from .routes import RoutesProvider
+from dummy_api.app import app
+from dummy_api.routes import RoutesProvider
 from flask import request
 
 
