@@ -58,14 +58,18 @@ class RouteRule:
         request_path = self.normalize_request_path(request_path)
         tokenized_request = self.tokenize_request_path(request_path)
         tokenized_route = self.get_tokenized_route_path()
-        if len(tokenized_request) != len(tokenized_route):
-            return False
         
-        for i in range(len(tokenized_request)):
-            request_token = tokenized_request[i]
+        for i in range(len(tokenized_route)):
             route_token = tokenized_route[i]
+            if route_token == "*":
+                return True
+            if i > len(tokenized_request):
+                return False
+            request_token = tokenized_request[i]
             if not route_token.startswith("{") and route_token != request_token:
                 return False
+        if len(tokenized_request) > i + 1:
+            return False
         return True
     
     def tokenize_request_path(self, request_path: str):
@@ -79,13 +83,36 @@ class RouteRule:
         return "reference" in rule_config.get("data", {})
 
 
+class RouteRuleChainLink:
+
+    def __init__(self, route_rule: RouteRule) -> None:
+        self.route_rule = route_rule
+
+    def can_handle(self, request: RouteRequest) -> bool:
+        return self.route_rule.can_handle_request(request)
+
+    def handle(self, request: RouteRequest) -> str:
+        return self.route_rule.get_route_data(request)
+
+
+class RouteRuleChain:
+
+    def __init__(self, rules: typing.List[RouteRuleChainLink]) -> None:
+        self.rule_chain_link = rules
+    
+    def execute(self, request: RouteRequest):
+        for rule_link in self.rule_chain_link:
+            if rule_link.can_handle(request):
+                return rule_link.handle(request)
+
+
 class RoutesProvider:
 
     def __init__(self, file_path: str):
         self.named_data_references = {}
         self.file_path = file_path
         self.raw_route_data = self.get_data_file_contents(self.file_path)
-        self.route_rules = self.get_route_rules()
+        self.route_rule_chain = self.build_route_rule_chain()
 
     @staticmethod
     def get_data_file_contents(file_path: str):
@@ -100,6 +127,15 @@ class RoutesProvider:
             referenced_resolver = self.named_data_references[referenced_data_source]
             return lambda: referenced_resolver()
         return lambda: base_data
+
+    def get_base_rule(self) -> RouteRule:
+        rule = DynamicDataRule(lambda: "No data available")
+        return RouteRule("*", rule)
+
+    def build_route_rule_chain(self) -> RouteRuleChain:
+        rules = self.get_route_rules() + [self.get_base_rule()]
+        links = list(map(lambda rule: RouteRuleChainLink(rule), rules))
+        return RouteRuleChain(links)
 
     def get_route_rules(self) -> typing.List[RouteRule]:
         rules_list = []
@@ -122,9 +158,6 @@ class RoutesProvider:
             rules_list.append(rule)
         return rules_list
 
-    def handle_rule_chain(self):
-        pass
-
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None, request_body=None) -> str:
         request = RouteRequest(
             request_path=request_path,
@@ -132,10 +165,7 @@ class RoutesProvider:
             query_parameters=query_parameters,
             request_body=request_body
         )
-        for rule in self.route_rules:
-            if rule.can_handle_request(request):
-                return rule.get_route_data(request)
-        return "Not found"
+        return self.route_rule_chain.execute(request) or "Not found"  # TODO: Add baseline rule that handles all requests with "Not found"
 
 
 class RouteRuleBuilder:
