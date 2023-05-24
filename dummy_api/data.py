@@ -101,6 +101,9 @@ class ReferenceResolver:
                     return item.copy()
         return data_to_return.copy() if hasattr(data_to_return, "copy") else data_to_return
 
+    def __call__(self, *args, **kwargs):
+        return self.query_data(**kwargs)
+
 
 class MutableDataResolver:
 

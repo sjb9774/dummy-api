@@ -42,7 +42,7 @@
             "data": {
                 "reference": {
                     "source": "friends",
-                    "find": "friends.id"
+                    "find": "friends[id={id}]"
                 }
             }
         }

@@ -1,5 +1,6 @@
 import json
 from dummy_api.rules import DynamicDataRule, ReferenceDataRule
+from dummy_api.data import MutableDataResolver
 import typing
 
 
@@ -112,6 +113,7 @@ class RoutesProvider:
         self.named_data_references = {}
         self.file_path = file_path
         self.raw_route_data = self.get_data_file_contents(self.file_path)
+        self.main_data_store = MutableDataResolver(self.raw_route_data)
         self.route_rule_chain = self.build_route_rule_chain()
 
     @staticmethod
@@ -126,7 +128,6 @@ class RoutesProvider:
             referenced_data_source = reference_data.get("source")
 
             def reference_resolver():
-                #
                 referenced_data_resolver = self.named_data_references[referenced_data_source]
                 return referenced_data_resolver()
 
@@ -147,7 +148,7 @@ class RoutesProvider:
         rules_list = []
         for route_config_entry in self.raw_route_data.get("routes", []):
             path = route_config_entry.get("path")
-            name = route_config_entry.get("name")  # TODO: Track name for references
+            name = route_config_entry.get("name")
             route_data = route_config_entry.get("data")
             data_resolver = self.get_data_resolver(route_config_entry)
             is_reference = RouteRule.is_reference_rule(route_config_entry)
@@ -172,8 +173,7 @@ class RoutesProvider:
             query_parameters=query_parameters,
             request_body=request_body
         )
-        return self.route_rule_chain.execute(
-            request) or "Not found"  # TODO: Add baseline rule that handles all requests with "Not found"
+        return self.route_rule_chain.execute(request)
 
 
 class RouteRuleBuilder:

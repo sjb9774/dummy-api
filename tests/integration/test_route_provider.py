@@ -22,7 +22,17 @@ class TestRoutesProvider:
     def test_route_reference(self, route_provider):
         assert route_provider.get_route_response_data("/friends/1").get("first_name") == "Stephen"
 
+    def test_route_reference_trailing_slash(self, route_provider):
+        assert route_provider.get_route_response_data("/friends/1/").get("first_name") == "Stephen"
+
+    def test_route_reference_no_preceding_slash(self, route_provider):
+        assert route_provider.get_route_response_data("friends/1/").get("first_name") == "Stephen"
+
     def test_route_reference_not_found(self, route_provider):
         assert route_provider.get_route_response_data("/friends/101").get("message") == "Not found"
+
+    def test_route_unknown_route(self, route_provider):
+        result = route_provider.get_route_response_data("/undefined")
+        assert result == "No data available"
 
 
