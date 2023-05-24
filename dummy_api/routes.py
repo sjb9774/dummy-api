@@ -165,7 +165,7 @@ class RoutesProvider:
         return rules_list
 
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
-                                request_body=None) -> str:
+                                request_body=None) -> typing.Any:
         request = RouteRequest(
             request_path=request_path,
             request_method=request_method,

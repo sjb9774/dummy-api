@@ -19,6 +19,16 @@
                         "friend_since": "1809-01-09",
                         "tags": ["old", "spooky"]
                     }
+                ],
+                "groups": [
+                    {
+                        "id": 100,
+                        "name": "Group A",
+                        "members": [
+                            {"member_id":  1, "name": "Stephen"},
+                            {"member_id":  2, "name": "Edgar"}
+                        ]
+                    }
                 ]
             }
         },
