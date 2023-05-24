@@ -2,6 +2,12 @@ import json
 import typing
 
 
+class Reference:
+
+    def __init__(self, data_provider: callable=None, reference_path:str = None):
+        self.data_prp
+
+
 class DynamicDataRule:
     def __init__(self, data_resolver: callable):
         self.data_resolver = data_resolver
