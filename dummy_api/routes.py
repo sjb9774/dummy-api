@@ -1,34 +1,22 @@
 import json
 from dummy_api.rules import DynamicDataRule, ReferenceDataRule
-from dummy_api.data import MutableDataResolver
+from dummy_api.data import MutableDataResolver, DataResolver
+from dummy_api.route_matching import RouteConstraint
+from dummy_api.request import RouteRequest
 import typing
 
 
-class RouteRequest:
+class Route:
+    def __init__(self, constraint: RouteConstraint, data_resolver: DataResolver):
+        self.constraint = constraint
+        self.data_resolver = data_resolver
 
-    def __init__(
-            self,
-            request_path: str = None,
-            request_method: str = None,
-            query_parameters: dict = {},
-            request_body: dict = {}
-    ):
-        self.request_path = request_path
-        self.request_method = request_method
-        self.query_parameters = query_parameters
-        self.request_body = request_body
+    def can_handle_request(self, request: RouteRequest) -> bool:
+        return self.constraint.does_request_match(request)
 
-    def get_query_params(self) -> dict:
-        return self.query_parameters.copy() if self.query_parameters else {}
-
-    def get_request_path(self) -> str:
-        return self.request_path
-
-    def get_request_method(self) -> str:
-        return self.request_method
-
-    def get_request_body(self) -> dict:
-        return self.request_body
+    def get_data(self, request: RouteRequest) -> typing.Any:
+        kwargs = self.constraint.get_constraint_parameters_from_request(request)
+        return self.data_resolver(request, **kwargs)
 
 
 class RouteRule:
@@ -92,7 +80,7 @@ class RouteRuleChainLink:
     def can_handle(self, request: RouteRequest) -> bool:
         return self.route_rule.can_handle_request(request)
 
-    def handle(self, request: RouteRequest) -> str:
+    def handle(self, request: RouteRequest) -> typing.Any:
         return self.route_rule.get_route_data(request)
 
 
@@ -115,6 +103,7 @@ class RoutesProvider:
         self.raw_route_data = self.get_data_file_contents(self.file_path)
         self.main_data_store = MutableDataResolver(self.raw_route_data)
         self.route_rule_chain = self.build_route_rule_chain()
+        self.routes = self.build_routes()
 
     @staticmethod
     def get_data_file_contents(file_path: str) -> dict:
@@ -144,6 +133,23 @@ class RoutesProvider:
         links = list(map(lambda rule: RouteRuleChainLink(rule), rules))
         return RouteRuleChain(links)
 
+    def build_routes(self) -> typing.List[Route]:
+        routes = []
+        for route_config_entry in self.raw_route_data.get("routes", []):
+            path = route_config_entry.get("path")
+            name = route_config_entry.get("name")
+            route_data = route_config_entry.get("data")
+            data_resolver_func: callable = self.get_data_resolver(route_config_entry)
+            resolver = DataResolver(
+                name,
+                data_resolver_func,
+                query_path=route_data.get("reference", {}).get("find", ""),
+                default=route_config_entry.get("default")
+            )
+            route = Route(RouteConstraint(path, ["GET"]), resolver)
+            routes.append(route)
+        return routes
+
     def get_route_rules(self) -> typing.List[RouteRule]:
         rules_list = []
         for route_config_entry in self.raw_route_data.get("routes", []):
@@ -165,6 +171,10 @@ class RoutesProvider:
             rules_list.append(rule)
         return rules_list
 
+    def handle_request(self, request: RouteRequest) -> typing.Any:
+        for route in self.routes:
+            if route.can_handle_request(request):
+                return route.get_data(request)
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
                                 request_body=None) -> typing.Any:
         request = RouteRequest(
@@ -173,7 +183,7 @@ class RoutesProvider:
             query_parameters=query_parameters,
             request_body=request_body
         )
-        return self.route_rule_chain.execute(request)
+        return self.handle_request(request)
 
 
 class RouteRuleBuilder:

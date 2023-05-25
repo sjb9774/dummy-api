@@ -1,5 +1,21 @@
 import typing
 import re
+from dummy_api.request import RouteRequest
+
+
+class DataResolver:
+
+    def __init__(self, name: str, data_provider: callable, query_path: str = None, default=None):
+        self.name = name
+        self.data_provider = data_provider
+        self.query_path = query_path
+        self.default = default
+
+    def get_data(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
+        return self.data_provider(request, *args, **kwargs)
+
+    def __call__(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
+        return self.get_data(request, *args, **kwargs)
 
 
 class DataPathQuery:
