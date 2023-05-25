@@ -28,6 +28,8 @@ class RouteConstraint:
             route_token = route_pattern_pieces[i]
             if route_token == "*":
                 continue
+            if route_token == "**":
+                continue  # TODO: What about "/test/**/something" paths? Need to ensure match on all concrete parts
             request_token = request_path_pieces[i]
             if route_token.startswith("{"):
                 params[route_token.strip("{}")] = request_token
@@ -59,6 +61,8 @@ class RouteMatcher:
             route_token = tokenized_route[i]
             if route_token == "*":
                 continue
+            if route_token == "**":
+                return True  # TODO: What about "/test/**/something" paths? Need to ensure match on all concrete parts
             if i > len(tokenized_request):
                 return False
             request_token = tokenized_request[i]

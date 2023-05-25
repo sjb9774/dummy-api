@@ -36,4 +36,8 @@ class TestRoutesProvider:
         result = route_provider.get_route_response_data("/undefined")
         assert result == {"error": True, "message": "Not found"}
 
+    def test_unknown_subpath_of_known_route(self, route_provider):
+        result = route_provider.get_route_response_data("/friends/10/something")
+        assert result == {"error": True, "message": "Not found"}
+
 

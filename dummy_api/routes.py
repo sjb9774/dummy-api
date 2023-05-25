@@ -32,23 +32,6 @@ class RoutesProvider:
         with open(file_path, "r") as f:
             return json.loads(f.read())
 
-    def get_data_resolver(self, data: dict) -> callable:
-        base_data = data.get("data")
-        if base_data.get("reference"):
-            reference_data = base_data.get("reference")
-            referenced_data_source = reference_data.get("source")
-
-            def reference_resolver():
-                referenced_data_resolver = self.named_data_references[referenced_data_source]
-                return referenced_data_resolver()
-
-            return reference_resolver
-
-        def basic_resolver(request: RouteRequest, *args, **kwargs):
-            return base_data
-
-        return basic_resolver
-
     def build_routes(self) -> typing.List[Route]:
         routes = []
         for route_config_entry in self.raw_route_data.get("routes", []):
@@ -76,9 +59,10 @@ class RoutesProvider:
     @staticmethod
     def get_default_response_data(request: RouteRequest, *args, **kwargs):
         return {"error": True, "message": "Not found"}
+
     @staticmethod
     def get_default_route() -> Route:
-        default_constraint = RouteConstraint("/*")
+        default_constraint = RouteConstraint("/**")
         default_resolver = DataResolver("default_route", RoutesProvider.get_default_response_data)
         route = Route(default_constraint, default_resolver)
         return route
