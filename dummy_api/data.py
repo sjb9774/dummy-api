@@ -5,6 +5,7 @@ from dummy_api.request import RouteRequest
 
 class DataPathQuery:
     LIST_QUERY_PARAMETER_REGEX = r"\[(?P<query>(?P<field>\w+)=(?P<value>[^\]]+))\]"
+    LIST_QUERY_PARAMETER_CONSTRAINT_REGEX = r"\[(?P<query>(?P<field>\w+)=(?P<value>\{[^\]]+\}))\]"
     LIST_QUERY_SPLIT_REGEX = r"([\w_]+(?:\[[^\]]+])?)(?:\.|$)"
 
     def __init__(self, query_string: str):
@@ -14,7 +15,7 @@ class DataPathQuery:
         return "{" in self.query_string
 
     def get_parameter_constraints(self) -> dict:
-        match_iter = re.finditer(self.LIST_QUERY_PARAMETER_REGEX, self.query_string)
+        match_iter = re.finditer(self.LIST_QUERY_PARAMETER_CONSTRAINT_REGEX, self.query_string)
         return {match.group("field"): match.group("value") for match in match_iter} if match_iter else {}
 
     def get_required_parameter_names(self):
@@ -57,7 +58,9 @@ class DataPathQuery:
         raise ValueError("Matching value not found in list")
 
     def query_dict(self, dict_to_query: dict, **kwargs):
-        if len(set(kwargs.keys()) - set(self.get_required_parameter_names())) > 0:
+        passed_params_set = set(kwargs.keys())
+        required_params_set = set(self.get_required_parameter_names())
+        if len(passed_params_set.symmetric_difference(required_params_set)) != 0:
             raise ValueError("Missing required parameters in list query")
 
         query_string = self.get_concrete_query_string(self.query_string, **kwargs)
@@ -65,6 +68,8 @@ class DataPathQuery:
         query_pieces = [x for x in query_pieces if x]
         result = dict_to_query.copy()
         for query_piece in query_pieces:
+            if not result:
+                return None
             if self.is_list_query_term(query_piece):
                 # TODO: This logic is a bit gross, use cleaner pattern matching
                 item_name, list_query = query_piece.split("[", 1)
@@ -85,13 +90,14 @@ class DataResolver:
         self.query_path = query_path
         self.default = default
 
-    def get_data(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
-        base_data = self.data_provider(request, *args, **kwargs)  # TODO: respect query path and pull appropriate data
+    def get_data(self, **kwargs) -> typing.Any:
+        base_data = self.data_provider(**kwargs)  # TODO: respect query path and pull appropriate data
         data_path = DataPathQuery(self.query_path)
-        return data_path.query_dict(base_data, **kwargs) or self.default
+        result = data_path.query_dict(base_data, **kwargs)
+        return self.default if result is None else data_path.query_dict(base_data, **kwargs)
 
-    def __call__(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
-        return self.get_data(request, *args, **kwargs)
+    def __call__(self, **kwargs) -> typing.Any:
+        return self.get_data(**kwargs)
 
 
 class MutableDataStore:
@@ -100,8 +106,8 @@ class MutableDataStore:
         self.data_resolvers = {}
         self.data_groups = {}
 
-    def build_data_resolver(self, name: str, query_path: str) -> DataResolver:
-        def data_resolver_fn(request: RouteRequest, *args, **kwargs) -> typing.Any:
+    def build_data_resolver(self, name: str, query_path: str = "") -> DataResolver:
+        def data_resolver_fn(**kwargs) -> typing.Any:
             return self.data_groups.get(name)
 
         resolver = DataResolver(name, data_resolver_fn, query_path)
@@ -111,8 +117,20 @@ class MutableDataStore:
         self.data_groups[name] = data
         return self
 
+    def build_resolver_for_data_group(self, data_group_name: str, data_group_data: dict, query_path: str = ""):
+        def data_resolver_fn(**kwargs) -> typing.Any:
+            return self.data_groups.get(data_group_name)
+
+        self.add_data_group(data_group_name, data_group_data)
+        resolver = DataResolver(data_group_name, data_resolver_fn, query_path)
+        self.add_resolver(data_group_name, resolver)
+        return resolver
+
     def add_resolver(self, name: str, resolver: DataResolver):
         self.data_resolvers[name] = resolver
+
+    def get_group_mutator(self, name):
+        pass
 
     def get_resolver_by_name(self, name: str) -> DataResolver:
         if not self.does_resolver_exist(name):

@@ -15,7 +15,7 @@ class Route:
 
     def get_data(self, request: RouteRequest) -> typing.Any:
         kwargs = self.constraint.get_constraint_parameters_from_request(request)
-        return self.data_resolver(request, **kwargs)
+        return self.data_resolver(**kwargs)
 
 
 class RoutesProvider:
@@ -57,7 +57,7 @@ class RoutesProvider:
         return routes
 
     @staticmethod
-    def get_default_response_data(request: RouteRequest, *args, **kwargs):
+    def get_default_response_data():
         return {"error": True, "message": "Not found"}
 
     @staticmethod
@@ -70,7 +70,7 @@ class RoutesProvider:
     def handle_request(self, request: RouteRequest) -> typing.Any:
         for route in self.routes:
             if route.can_handle_request(request):
-                return route.get_data(request) or RoutesProvider.get_default_response_data(request)
+                return route.get_data(request) or RoutesProvider.get_default_response_data()
 
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
                                 request_body=None) -> typing.Any:
