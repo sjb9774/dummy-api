@@ -1,5 +1,4 @@
 import json
-from dummy_api.rules import DynamicDataRule, ReferenceDataRule
 from dummy_api.data import MutableDataStore, DataResolver
 from dummy_api.route_matching import RouteConstraint
 from dummy_api.request import RouteRequest
@@ -17,82 +16,6 @@ class Route:
     def get_data(self, request: RouteRequest) -> typing.Any:
         kwargs = self.constraint.get_constraint_parameters_from_request(request)
         return self.data_resolver(request, **kwargs)
-
-
-class RouteRule:
-
-    def __init__(self, route_path: str, data_rule: DynamicDataRule):
-        self.route_path = route_path.lstrip("/")
-        self.data_rule = data_rule
-
-    def get_route_data(self, request: RouteRequest) -> dict:
-        return self.data_rule.get_data(
-            request.get_request_path(),
-            request_method=request.get_request_method(),
-            query_parameters=request.get_query_params(),
-            request_body=request.get_request_body()
-        )
-
-    def get_route_path(self) -> str:
-        return self.route_path
-
-    @staticmethod
-    def normalize_request_path(request_path: str):
-        return request_path.strip("/")
-
-    def can_handle_request(self, request: RouteRequest) -> bool:
-        return self.does_request_path_match_route(request.get_request_path())
-
-    def does_request_path_match_route(self, request_path: str) -> bool:
-        request_path = self.normalize_request_path(request_path)
-        tokenized_request = self.tokenize_request_path(request_path)
-        tokenized_route = self.get_tokenized_route_path()
-
-        for i in range(len(tokenized_route)):
-            route_token = tokenized_route[i]
-            if route_token == "*":
-                return True
-            if i > len(tokenized_request):
-                return False
-            request_token = tokenized_request[i]
-            if not route_token.startswith("{") and route_token != request_token:
-                return False
-        if len(tokenized_request) > i + 1:
-            return False
-        return True
-
-    def tokenize_request_path(self, request_path: str):
-        return request_path.split("/")
-
-    def get_tokenized_route_path(self):
-        return self.route_path.split("/")
-
-    @staticmethod
-    def is_reference_rule(rule_config: dict) -> bool:
-        return "reference" in rule_config.get("data", {})
-
-
-class RouteRuleChainLink:
-
-    def __init__(self, route_rule: RouteRule) -> None:
-        self.route_rule = route_rule
-
-    def can_handle(self, request: RouteRequest) -> bool:
-        return self.route_rule.can_handle_request(request)
-
-    def handle(self, request: RouteRequest) -> typing.Any:
-        return self.route_rule.get_route_data(request)
-
-
-class RouteRuleChain:
-
-    def __init__(self, rules: typing.List[RouteRuleChainLink]) -> None:
-        self.rule_chain_link = rules
-
-    def execute(self, request: RouteRequest):
-        for rule_link in self.rule_chain_link:
-            if rule_link.can_handle(request):
-                return rule_link.handle(request)
 
 
 class RoutesProvider:
@@ -174,16 +97,3 @@ class RoutesProvider:
             request_body=request_body
         )
         return self.handle_request(request)
-
-
-class RouteRuleBuilder:
-
-    @staticmethod
-    def build_rule(path: str, data_resolver: callable) -> RouteRule:
-        data_rule = DynamicDataRule(data_resolver)
-        return RouteRule(path, data_rule)
-
-    @staticmethod
-    def build_reference(path: str, data_resolver: callable, reference_path: str, default_data: dict) -> RouteRule:
-        data_rule = ReferenceDataRule(data_resolver, reference_path, default_data)
-        return RouteRule(path, data_rule)
