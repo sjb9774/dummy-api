@@ -49,7 +49,7 @@ class RoutesProvider:
             # add resolver under its own name so it can also be referenced
             self.main_data_store.add_resolver(name, resolver)
 
-            route = Route(RouteConstraint(path, ["GET"]), resolver)
+            route = Route(RouteConstraint(path, route_data.get("methods", ["GET"])), resolver)
             routes.append(route)
 
         routes.append(self.get_default_route())
