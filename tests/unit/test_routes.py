@@ -30,7 +30,7 @@ def route_data_with_reference_path():
                 "data": {
                     "reference": {
                         "source": "values",
-                        "find": "items.id"
+                        "find": "items[id={id}]"
                     }
                 }
             }
@@ -75,7 +75,7 @@ class TestRoutesProvider:
             route_provider = RoutesProvider("fake.json")
             result = route_provider.get_route_response_data("/incorrect_path", request_method="GET")
             assert result != {"test": 100}
-            assert result == "No data available"
+            assert result == {"error": True, "message": "Not found"}
 
     def test_get_route_data_reference_path_matching_request(self, mocker, route_data_with_reference_path):
         with mocked_routes_file(mocker, route_data_with_reference_path):

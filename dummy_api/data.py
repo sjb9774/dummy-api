@@ -24,7 +24,8 @@ class DataPathQuery:
     def get_concrete_query_string(parameterized_query_string: str, **kwargs) -> str:
         concrete_query_string = parameterized_query_string
         for field, value in kwargs.items():
-            concrete_query_string = concrete_query_string.replace("{" + field + "}", value)
+            #  TODO: Better handle non-string data
+            concrete_query_string = concrete_query_string.replace("{" + field + "}", str(value))
         return concrete_query_string
 
     def is_list_query_term(self, query_term: str) -> bool:
