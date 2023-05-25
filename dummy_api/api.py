@@ -1,9 +1,10 @@
 from dummy_api.app import app
 from dummy_api.routes import RoutesProvider
 from flask import request
+import os
 
 
-route_provider = RoutesProvider("./routes.json")
+route_provider = RoutesProvider(os.path.join(os.path.dirname(__file__), "./routes.json"))
 
 
 @app.route("/")
