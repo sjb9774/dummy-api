@@ -120,3 +120,33 @@ class TestMutableDataStoreResolvers:
         fetched_resolver = self.store.get_resolver_by_name("data")
         assert resolver == fetched_resolver
         assert resolver() == fetched_resolver()
+
+
+class TestMutableDataStoreMutators:
+    def setup_method(self):
+        self.store = MutableDataStore()
+        self.group_one_dict = {
+            "name": "Stephen",
+            "items": [
+                {"id": 1, "value": "One"},
+                {"id": 2, "value": "Two"}
+            ]
+        }
+        self.group_two_dict = {
+            "name": "Savannah",
+            "items": [
+                {"id": 100, "value": "One hundred"},
+                {"id": 200, "value": "Two hundred"}
+            ]
+        }
+        self.store.add_data_group("data_group_one", self.group_one_dict)
+        self.store.add_data_group("data_group_two", self.group_two_dict)
+
+    def test_mutator_data_is_same_object(self):
+        mutator = self.store.get_group_mutator("data_group_one")
+        assert id(mutator.get_data()) == id(self.group_one_dict)
+
+    def test_mutate_by_direct_index(self):
+        mutator = self.store.get_group_mutator("data_group_one")
+        mutator.get_data()["name"] = "Someone else"
+        assert mutator.get_data()["name"] == "Someone else"

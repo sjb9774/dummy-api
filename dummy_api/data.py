@@ -100,6 +100,15 @@ class DataResolver:
         return self.get_data(**kwargs)
 
 
+class DataMutator:
+
+    def __init__(self, hard_data_reference: dict):
+        self.data_reference = hard_data_reference
+
+    def get_data(self) -> dict:
+        return self.data_reference
+
+
 class MutableDataStore:
 
     def __init__(self):
@@ -129,8 +138,8 @@ class MutableDataStore:
     def add_resolver(self, name: str, resolver: DataResolver):
         self.data_resolvers[name] = resolver
 
-    def get_group_mutator(self, name):
-        pass
+    def get_group_mutator(self, name) -> DataMutator:
+        return DataMutator(self.data_groups.get(name))
 
     def get_resolver_by_name(self, name: str) -> DataResolver:
         if not self.does_resolver_exist(name):
