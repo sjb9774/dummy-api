@@ -46,23 +46,11 @@ class TestRoutesProvider:
             route_provider = RoutesProvider("fake.json")
             assert route_provider
 
-    def test_route_provider_base_rule(self, mocker):
+    def test_route_provider_default_route(self, mocker):
         with mocked_routes_file(mocker, '{"routes": []}'):
             route_provider = RoutesProvider("fake.json")
-            base_rule = route_provider.get_base_rule()
-            assert base_rule.get_route_data(RouteRequest()) == "No data available"
-
-    def test_get_rules_empty_list(self, mocker):
-        with mocked_routes_file(mocker, '{"routes": []}'):
-            route_provider = RoutesProvider("fake.json")
-            rules = route_provider.get_route_rules()
-            assert len(rules) == 0
-    
-    def test_get_rules_nonempty_list(self, mocker):
-        with mocked_routes_file(mocker, '{"routes": [{"path": "/test", "data": {}}]}'):
-            route_provider = RoutesProvider("fake.json")
-            rules = route_provider.get_route_rules()
-            assert len(rules) == 1
+            default_route = route_provider.get_default_route()
+            assert default_route.get_data(RouteRequest("/")) == {'error': True, 'message': 'Not found'}
 
     def test_get_route_data_correct_path(self, mocker):
         with mocked_routes_file(mocker, '{"routes": [{"path": "/test", "data": {"test": 100}}]}'):

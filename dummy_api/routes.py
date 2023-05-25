@@ -1,6 +1,6 @@
 import json
 from dummy_api.rules import DynamicDataRule, ReferenceDataRule
-from dummy_api.data import MutableDataResolver, DataResolver
+from dummy_api.data import MutableDataStore, DataResolver
 from dummy_api.route_matching import RouteConstraint
 from dummy_api.request import RouteRequest
 import typing
@@ -101,8 +101,7 @@ class RoutesProvider:
         self.named_data_references = {}
         self.file_path = file_path
         self.raw_route_data = self.get_data_file_contents(self.file_path)
-        self.main_data_store = MutableDataResolver(self.raw_route_data)
-        self.route_rule_chain = self.build_route_rule_chain()
+        self.main_data_store = MutableDataStore()
         self.routes = self.build_routes()
 
     @staticmethod
@@ -116,9 +115,9 @@ class RoutesProvider:
             reference_data = base_data.get("reference")
             referenced_data_source = reference_data.get("source")
 
-            def reference_resolver(request: RouteRequest, *args, **kwargs):
+            def reference_resolver():
                 referenced_data_resolver = self.named_data_references[referenced_data_source]
-                return referenced_data_resolver(request, *args, **kwargs)
+                return referenced_data_resolver()
 
             return reference_resolver
 
@@ -127,29 +126,23 @@ class RoutesProvider:
 
         return basic_resolver
 
-    @staticmethod
-    def get_base_rule() -> RouteRule:
-        rule = DynamicDataRule(lambda: "No data available")
-        return RouteRule("*", rule)
-
-    def build_route_rule_chain(self) -> RouteRuleChain:
-        rules = self.get_route_rules() + [self.get_base_rule()]
-        links = list(map(lambda rule: RouteRuleChainLink(rule), rules))
-        return RouteRuleChain(links)
-
     def build_routes(self) -> typing.List[Route]:
         routes = []
         for route_config_entry in self.raw_route_data.get("routes", []):
             path = route_config_entry.get("path")
             name = route_config_entry.get("name")
             route_data = route_config_entry.get("data")
-            data_resolver_func: callable = self.get_data_resolver(route_config_entry)
-            resolver = DataResolver(
-                name,
-                data_resolver_func,
-                query_path=route_data.get("reference", {}).get("find", ""),
-                default=route_config_entry.get("default")
-            )
+            # TODO: Improve delineation between simple "data" routes and reference routes
+            if not route_data.get("reference"):  # not a reference, has raw data to provide
+                self.main_data_store.add_data_group(name, route_data)
+
+            resolver = self.main_data_store.build_data_resolver(
+                route_data.get("reference", {}).get("source", name),
+                route_data.get("reference", {}).get("find", "")
+            )  # build resolver that may pull from another data source
+            # add resolver under its own name so it can also be referenced
+            self.main_data_store.add_resolver(name, resolver)
+
             route = Route(RouteConstraint(path, ["GET"]), resolver)
             routes.append(route)
 
@@ -158,39 +151,19 @@ class RoutesProvider:
         return routes
 
     @staticmethod
-    def get_default_route():
-        def default_data(request: RouteRequest, *args, **kwargs):
-            return {"error": True, "message": "Not found"}
+    def get_default_response_data(request: RouteRequest, *args, **kwargs):
+        return {"error": True, "message": "Not found"}
+    @staticmethod
+    def get_default_route() -> Route:
         default_constraint = RouteConstraint("/*")
-        default_resolver = DataResolver("default_route", default_data)
+        default_resolver = DataResolver("default_route", RoutesProvider.get_default_response_data)
         route = Route(default_constraint, default_resolver)
         return route
-
-    def get_route_rules(self) -> typing.List[RouteRule]:
-        rules_list = []
-        for route_config_entry in self.raw_route_data.get("routes", []):
-            path = route_config_entry.get("path")
-            name = route_config_entry.get("name")
-            route_data = route_config_entry.get("data")
-            data_resolver = self.get_data_resolver(route_config_entry)
-            is_reference = RouteRule.is_reference_rule(route_config_entry)
-            if is_reference:
-                rule = RouteRuleBuilder.build_reference(
-                    path,
-                    data_resolver,
-                    route_data.get("reference").get("find"),
-                    route_config_entry.get("default", {})
-                )
-            else:
-                rule = RouteRuleBuilder.build_rule(path, data_resolver)
-            self.named_data_references[name] = data_resolver
-            rules_list.append(rule)
-        return rules_list
 
     def handle_request(self, request: RouteRequest) -> typing.Any:
         for route in self.routes:
             if route.can_handle_request(request):
-                return route.get_data(request)
+                return route.get_data(request) or RoutesProvider.get_default_response_data(request)
 
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
                                 request_body=None) -> typing.Any:
