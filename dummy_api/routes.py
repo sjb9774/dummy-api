@@ -116,12 +116,16 @@ class RoutesProvider:
             reference_data = base_data.get("reference")
             referenced_data_source = reference_data.get("source")
 
-            def reference_resolver():
+            def reference_resolver(request: RouteRequest, *args, **kwargs):
                 referenced_data_resolver = self.named_data_references[referenced_data_source]
-                return referenced_data_resolver()
+                return referenced_data_resolver(request, *args, **kwargs)
 
             return reference_resolver
-        return lambda: base_data
+
+        def basic_resolver(request: RouteRequest, *args, **kwargs):
+            return base_data
+
+        return basic_resolver
 
     @staticmethod
     def get_base_rule() -> RouteRule:
@@ -148,7 +152,19 @@ class RoutesProvider:
             )
             route = Route(RouteConstraint(path, ["GET"]), resolver)
             routes.append(route)
+
+        routes.append(self.get_default_route())
+
         return routes
+
+    @staticmethod
+    def get_default_route():
+        def default_data(request: RouteRequest, *args, **kwargs):
+            return {"error": True, "message": "Not found"}
+        default_constraint = RouteConstraint("/*")
+        default_resolver = DataResolver("default_route", default_data)
+        route = Route(default_constraint, default_resolver)
+        return route
 
     def get_route_rules(self) -> typing.List[RouteRule]:
         rules_list = []
@@ -175,6 +191,7 @@ class RoutesProvider:
         for route in self.routes:
             if route.can_handle_request(request):
                 return route.get_data(request)
+
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
                                 request_body=None) -> typing.Any:
         request = RouteRequest(

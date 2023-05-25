@@ -8,7 +8,7 @@ class RouteRequest:
             request_body: dict = None
     ):
         self.request_path = request_path
-        self.request_method = request_method
+        self.request_method = request_method or "GET"
         self.query_parameters = query_parameters or {}
         self.request_body = request_body or {}
 

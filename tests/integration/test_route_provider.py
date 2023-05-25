@@ -1,17 +1,18 @@
 import pytest
 import json
+import os
 from dummy_api.routes import RoutesProvider
 
 
 @pytest.fixture
 def route_provider():
-    return RoutesProvider("./tests/integration/routes.test.json")
+    return RoutesProvider(os.path.join(os.path.dirname(__file__), "routes.test.json"))
 
 
 class TestRoutesProvider:
 
     def setup_method(self):
-        with open("./tests/integration/routes.test.json", "r") as f:
+        with open(os.path.join(os.path.dirname(__file__), "routes.test.json"), "r") as f:
             self.raw_data = json.loads(f.read())
 
     def test_routes_basic_fetch(self, route_provider):
@@ -33,6 +34,6 @@ class TestRoutesProvider:
 
     def test_route_unknown_route(self, route_provider):
         result = route_provider.get_route_response_data("/undefined")
-        assert result == "No data available"
+        assert result == {"error": True, "message": "Not found"}
 
 

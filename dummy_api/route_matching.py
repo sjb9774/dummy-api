@@ -20,8 +20,8 @@ class RouteConstraint:
     def get_constraint_parameters_from_request(self, request: RouteRequest) -> dict:
         if not self.does_request_match(request):
             raise ValueError("Can't extract parameters for request that doesn't match constraint")
-        request_path_pieces = request.get_request_path().split("/")
-        route_pattern_pieces = self.route_pattern.split("/")
+        request_path_pieces = request.get_request_path().strip("/").split("/")
+        route_pattern_pieces = self.route_pattern.strip("/").split("/")
         params = {}
 
         for i in range(len(route_pattern_pieces)):

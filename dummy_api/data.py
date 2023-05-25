@@ -3,21 +3,6 @@ import re
 from dummy_api.request import RouteRequest
 
 
-class DataResolver:
-
-    def __init__(self, name: str, data_provider: callable, query_path: str = None, default=None):
-        self.name = name
-        self.data_provider = data_provider
-        self.query_path = query_path
-        self.default = default
-
-    def get_data(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
-        return self.data_provider(request, *args, **kwargs)
-
-    def __call__(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
-        return self.get_data(request, *args, **kwargs)
-
-
 class DataPathQuery:
     LIST_QUERY_PARAMETER_REGEX = r"\[(?P<query>(?P<field>\w+)=(?P<value>[^\]]+))\]"
     LIST_QUERY_SPLIT_REGEX = r"([\w_]+(?:\[[^\]]+])?)(?:\.|$)"
@@ -74,17 +59,38 @@ class DataPathQuery:
         if len(set(kwargs.keys()) - set(self.get_required_parameter_names())) > 0:
             raise ValueError("Missing required parameters in list query")
 
-        query_string = self.get_concrete_query_string(self.query_string)
+        query_string = self.get_concrete_query_string(self.query_string, **kwargs)
         query_pieces = re.split(self.LIST_QUERY_SPLIT_REGEX, query_string)
         query_pieces = [x for x in query_pieces if x]
         result = dict_to_query.copy()
         for query_piece in query_pieces:
             if self.is_list_query_term(query_piece):
+                # TODO: This logic is a bit gross, use cleaner pattern matching
                 item_name, list_query = query_piece.split("[", 1)
-                result = self.resolve_list_query_term(result.get(item_name), f"[{list_query}", **kwargs)
+                try:
+                    result = self.resolve_list_query_term(result.get(item_name), f"[{list_query}", **kwargs)
+                except ValueError:
+                    return None
             else:
                 result = self.resolve_dict_query_term(result, query_piece, **kwargs)
         return result
+
+
+class DataResolver:
+
+    def __init__(self, name: str, data_provider: callable, query_path: str = "", default=None):
+        self.name = name
+        self.data_provider = data_provider
+        self.query_path = query_path
+        self.default = default
+
+    def get_data(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
+        base_data = self.data_provider(request, *args, **kwargs)  # TODO: respect query path and pull appropriate data
+        data_path = DataPathQuery(self.query_path)
+        return data_path.query_dict(base_data, **kwargs) or self.default
+
+    def __call__(self, request: RouteRequest, *args, **kwargs) -> typing.Any:
+        return self.get_data(request, *args, **kwargs)
 
 
 class ReferenceResolver:
