@@ -57,11 +57,43 @@ class DataPathQuery:
                 return item
         raise ValueError("Matching value not found in list")
 
-    def query_dict(self, dict_to_query: dict, **kwargs):
+    def validate_params(self, **kwargs):
         passed_params_set = set(kwargs.keys())
         required_params_set = set(self.get_required_parameter_names())
         if len(passed_params_set.symmetric_difference(required_params_set)) != 0:
             raise ValueError("Missing required parameters in list query")
+        return True
+
+    def update_dict(self, dict_to_update: dict, update_data: typing.Any, **kwargs) -> dict:
+        self.validate_params(**kwargs)
+
+        query_string = self.get_concrete_query_string(self.query_string, **kwargs)
+        query_pieces = re.split(self.LIST_QUERY_SPLIT_REGEX, query_string)
+        query_pieces = [x for x in query_pieces if x]
+        result = dict_to_update
+        if not query_pieces:
+            raise ValueError("Must provide a query path for updates, cannot replace entire object")
+        last_piece = query_pieces[-1]
+        for query_piece in query_pieces[:-1]:
+            if not result:
+                raise ValueError("Could not find value to update")
+            if self.is_list_query_term(query_piece):
+                # TODO: This logic is a bit gross, use cleaner pattern matching
+                item_name, list_query = query_piece.split("[", 1)
+                try:
+                    result = self.resolve_list_query_term(result.get(item_name), f"[{list_query}", **kwargs)
+                except ValueError:
+                    return {}
+            else:
+                result = self.resolve_dict_query_term(result, query_piece, **kwargs)
+
+        # last piece is important since it is what ultimately should be updated
+        result[last_piece] = update_data
+
+        return dict_to_update
+
+    def query_dict(self, dict_to_query: dict, **kwargs):
+        self.validate_params(**kwargs)
 
         query_string = self.get_concrete_query_string(self.query_string, **kwargs)
         query_pieces = re.split(self.LIST_QUERY_SPLIT_REGEX, query_string)
@@ -95,6 +127,12 @@ class DataResolver:
         data_path = DataPathQuery(self.query_path)
         result = data_path.query_dict(base_data, **kwargs)
         return self.default if result is None else data_path.query_dict(base_data, **kwargs)
+
+    def update_data(self, update_dict: dict, **kwargs):
+        base_data = self.data_provider(**kwargs)  # TODO: respect query path and pull appropriate data
+        data_path = DataPathQuery(self.query_path)
+        result_data = data_path.query_dict(base_data, **kwargs)
+        result = data_path.update_dict(base_data, update_dict)
 
     def __call__(self, **kwargs) -> typing.Any:
         return self.get_data(**kwargs)
