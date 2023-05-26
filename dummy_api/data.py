@@ -14,12 +14,14 @@ class DataPathQuery:
     def has_parameters(self) -> bool:
         return "{" in self.query_string
 
-    def get_parameter_constraints(self) -> dict:
+    def get_parameter_constraints(self) -> list:
         match_iter = re.finditer(self.LIST_QUERY_PARAMETER_CONSTRAINT_REGEX, self.query_string)
-        return {match.group("field"): match.group("value") for match in match_iter} if match_iter else {}
+        result_list = [match.group("value") for match in match_iter] if match_iter else []
+        return result_list
 
-    def get_required_parameter_names(self):
-        return [value.strip("{}") for value in self.get_parameter_constraints().values()]
+    def get_required_parameter_names(self) -> typing.List[str]:
+        cleaned_results = [value.strip("{}") for value in self.get_parameter_constraints()]
+        return cleaned_results
 
     @staticmethod
     def get_concrete_query_string(parameterized_query_string: str, **kwargs) -> str:

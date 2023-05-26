@@ -72,6 +72,11 @@ class TestDataPathQuery:
         query_result = dpq.query_dict(self.dict_to_query, list_id=100, object_name="Object 1")
         assert query_result == {"name": "Object 1"}
 
+    def test_list_query_multi_list_query_parameterized_values_same_field_name(self):
+        dpq = DataPathQuery("objects_lists[name={list_name}].list[name={object_name}]")
+        query_result = dpq.query_dict(self.dict_to_query, list_name="Object List 1", object_name="Object 1")
+        assert query_result == {"name": "Object 1"}
+
     def test_list_query_multi_list_query_mixed_values(self):
         dpq = DataPathQuery("objects_lists[id=100].list[name={object_name}]")
         query_result = dpq.query_dict(self.dict_to_query, object_name="Object 1")
@@ -147,6 +152,11 @@ class TestDataPathUpdate:
         dpq = DataPathQuery("items[id={id}].name")
         result = dpq.update_dict(self.dict_to_update, "Brand new name", id=1)
         assert result["items"][0]["name"] == "Brand new name"
+
+    def test_update_list_item_with_multiple_templatized_parameters(self):
+        dpq = DataPathQuery("objects_lists[id={id}].list[name={list_name}].name")
+        result = dpq.update_dict(self.dict_to_update, "Brand new name", id=200, list_name="Object 4")
+        assert result["objects_lists"][1]["list"][0]["name"] == "Brand new name"
 
     def test_full_data_replace_from_root_fails(self):
         dpq = DataPathQuery("")
