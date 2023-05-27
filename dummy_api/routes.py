@@ -1,17 +1,28 @@
 import json
-from dummy_api.data import MutableDataStore, DataResolver
+from dummy_api.data import MutableDataStore, DataResolver, DataMutator
 from dummy_api.route_matching import RouteConstraint
 from dummy_api.request import RouteRequest
 import typing
 
 
 class Route:
-    def __init__(self, constraint: RouteConstraint, data_resolver: DataResolver):
+    def __init__(self, constraint: RouteConstraint, data_resolver: DataResolver, data_mutator: DataMutator = None):
         self.constraint = constraint
         self.data_resolver = data_resolver
+        self.data_mutator = data_mutator
 
     def can_handle_request(self, request: RouteRequest) -> bool:
         return self.constraint.does_request_match(request)
+
+    def handle_request(self, request: RouteRequest) -> typing.Any:
+        if request.get_request_method() == "GET":
+            return self.get_data(request)
+        elif request.get_request_method() == "POST":
+            return self.post_data(request)
+
+    def post_data(self, request: RouteRequest) -> dict:
+        kwargs = self.constraint.get_constraint_parameters_from_request(request)
+        return self.data_mutator.update_data(request.get_request_body().get("payload"), **kwargs)
 
     def get_data(self, request: RouteRequest) -> typing.Any:
         kwargs = self.constraint.get_constraint_parameters_from_request(request)
@@ -42,14 +53,21 @@ class RoutesProvider:
             if not route_data.get("reference"):  # not a reference, has raw data to provide
                 self.main_data_store.add_data_group(name, route_data)
 
+            group_name = route_data.get("reference", {}).get("source", name)
+            query_path = route_data.get("reference", {}).get("find", "")
             resolver = self.main_data_store.build_data_resolver(
-                route_data.get("reference", {}).get("source", name),
-                route_data.get("reference", {}).get("find", "")
+                group_name,
+                query_path
             )  # build resolver that may pull from another data source
+            mutator = self.main_data_store.get_group_mutator(group_name, query_path)
             # add resolver under its own name so it can also be referenced
             self.main_data_store.add_resolver(name, resolver)
 
-            route = Route(RouteConstraint(path, route_data.get("methods", ["GET"])), resolver)
+            route = Route(
+                RouteConstraint(path, route_config_entry.get("methods", ["GET"])),
+                resolver,
+                mutator
+            )
             routes.append(route)
 
         routes.append(self.get_default_route())
@@ -70,7 +88,7 @@ class RoutesProvider:
     def handle_request(self, request: RouteRequest) -> typing.Any:
         for route in self.routes:
             if route.can_handle_request(request):
-                return route.get_data(request) or RoutesProvider.get_default_response_data()
+                return route.handle_request(request) or RoutesProvider.get_default_response_data()
 
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
                                 request_body=None) -> typing.Any:

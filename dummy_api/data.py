@@ -66,12 +66,18 @@ class DataPathQuery:
             raise ValueError("Missing required parameters in list query")
         return True
 
-    def update_dict(self, dict_to_update: dict, update_data: typing.Any, **kwargs) -> dict:
-        self.validate_params(**kwargs)
-
+    def get_query_tokens(self, **kwargs) -> typing.List[str]:
         query_string = self.get_concrete_query_string(self.query_string, **kwargs)
         query_pieces = re.split(self.LIST_QUERY_SPLIT_REGEX, query_string)
-        query_pieces = [x for x in query_pieces if x]
+        query_pieces = [x for x in query_pieces if x and x != "."]
+        return query_pieces
+
+    def is_root_query(self, **kwargs) -> bool:
+        return len(self.get_query_tokens(**kwargs)) == 0
+
+    def update_dict(self, dict_to_update: dict, update_data: typing.Any, **kwargs) -> dict:
+        self.validate_params(**kwargs)
+        query_pieces = self.get_query_tokens(**kwargs)
         result = dict_to_update
         if not query_pieces:
             raise ValueError("Must provide a query path for updates, cannot replace entire object")
@@ -94,13 +100,11 @@ class DataPathQuery:
 
         return dict_to_update
 
-    def query_dict(self, dict_to_query: dict, **kwargs):
+    def query_dict(self, dict_to_query: dict, copy=True, **kwargs):
         self.validate_params(**kwargs)
 
-        query_string = self.get_concrete_query_string(self.query_string, **kwargs)
-        query_pieces = re.split(self.LIST_QUERY_SPLIT_REGEX, query_string)
-        query_pieces = [x for x in query_pieces if x]
-        result = dict_to_query.copy()
+        query_pieces = self.get_query_tokens(**kwargs)
+        result = dict_to_query.copy() if copy else dict_to_query
         for query_piece in query_pieces:
             if not result:
                 return None
@@ -128,13 +132,7 @@ class DataResolver:
         base_data = self.data_provider(**kwargs)  # TODO: respect query path and pull appropriate data
         data_path = DataPathQuery(self.query_path)
         result = data_path.query_dict(base_data, **kwargs)
-        return self.default if result is None else data_path.query_dict(base_data, **kwargs)
-
-    def update_data(self, update_dict: dict, **kwargs):
-        base_data = self.data_provider(**kwargs)  # TODO: respect query path and pull appropriate data
-        data_path = DataPathQuery(self.query_path)
-        result_data = data_path.query_dict(base_data, **kwargs)
-        result = data_path.update_dict(base_data, update_dict)
+        return self.default if result is None else result
 
     def __call__(self, **kwargs) -> typing.Any:
         return self.get_data(**kwargs)
@@ -142,11 +140,42 @@ class DataResolver:
 
 class DataMutator:
 
-    def __init__(self, hard_data_reference: dict):
-        self.data_reference = hard_data_reference
+    def __init__(
+            self,
+            data_ref_provider: callable,
+            delete_fn: callable = None,
+            replace_fn: callable = None,
+            query_path: str = ""
+    ):
+        self.data_ref_provider = data_ref_provider
+        self.delete_fn = delete_fn
+        self.replace_fn = replace_fn
+        self.query_path = query_path
 
-    def get_data(self) -> dict:
-        return self.data_reference
+    def get_data(self, **kwargs) -> dict:
+        base_data = self.data_ref_provider(**kwargs)  # TODO: respect query path and pull appropriate data
+        data_path = DataPathQuery(self.query_path)
+        return data_path.query_dict(base_data, copy=False, **kwargs)
+
+    def get_object_to_update(self, **kwargs) -> dict:
+        base_data = self.data_ref_provider(**kwargs)
+
+    def update_data(self, new_data: dict, **kwargs) -> dict:
+        data_path = DataPathQuery(self.query_path)
+        if data_path.is_root_query(**kwargs):
+            return self.replace_fn(new_data)
+
+        next_to_last_query_path = ".".join(self.query_path.split(".")[:-1])
+        next_to_last_data_path = DataPathQuery(next_to_last_query_path)
+        base_data = next_to_last_data_path.query_dict(self.data_ref_provider(**kwargs), copy=False, **kwargs)
+
+        return data_path.update_dict(base_data, new_data, **kwargs)
+
+    def delete(self) -> None:
+        return self.delete_fn()
+
+    def replace(self, new_data: dict) -> dict:
+        return self.replace_fn(new_data)
 
 
 class MutableDataStore:
@@ -178,8 +207,27 @@ class MutableDataStore:
     def add_resolver(self, name: str, resolver: DataResolver):
         self.data_resolvers[name] = resolver
 
-    def get_group_mutator(self, name) -> DataMutator:
-        return DataMutator(self.data_groups.get(name))
+    def get_mutator_delete(self, group_name: str) -> callable:
+        def mutator_delete() -> None:
+            del self.data_groups[group_name]
+            return None
+
+        return mutator_delete
+
+    def get_mutator_replace(self, group_name: str) -> callable:
+        def mutator_update(new_data: dict) -> dict:
+            self.data_groups[group_name] = new_data
+            return self.data_groups.get(group_name)
+
+        return mutator_update
+
+    def get_group_mutator(self, name: str, query_path: str = "") -> DataMutator:
+        return DataMutator(
+            lambda: self.data_groups.get(name),
+            query_path=query_path,
+            delete_fn=self.get_mutator_delete(name),
+            replace_fn=self.get_mutator_replace(name)
+        )
 
     def get_resolver_by_name(self, name: str) -> DataResolver:
         if not self.does_resolver_exist(name):

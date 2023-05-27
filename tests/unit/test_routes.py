@@ -39,7 +39,7 @@ def route_data_with_reference_path():
     return json.dumps(data)
 
 
-class TestRoutesProvider:
+class TestRoutesProviderGet:
 
     def test_simple_route_provider_init(self, mocker):
         with mocked_routes_file(mocker, '{"routes": []}'):
@@ -70,3 +70,52 @@ class TestRoutesProvider:
             route_provider = RoutesProvider("fake.json")
             result = route_provider.get_route_response_data("/ref/5", request_method="GET")
             assert result == {"id": 5, "value": "test"}
+
+
+class TestRoutesProviderPost:
+
+    def get_route_data(self, find_pattern):
+        return {
+            "routes": [
+                {"path": "/test", "name": "test_data", "methods": ["GET"], "data": {"test": 100}},
+                {
+                    "path": "/test/value",
+                    "methods": ["POST"],
+                    "data": {"reference": {"source": "test_data", "find": find_pattern}}
+                }
+            ]
+        }
+
+    def setup_method(self):
+
+        self.route_data = {
+            "routes": [
+                {"path": "/test", "name": "test_data", "methods": ["GET"], "data": {"test": 100}},
+                {
+                    "path": "/test/value",
+                    "methods": ["POST"],
+                    "data": {"reference": {"source": "test_data", "find": "test"}}
+                }
+            ]
+        }
+
+    def test_post_route_data_correct_path_update_scalar(self, mocker):
+        with mocked_routes_file(mocker, json.dumps(self.route_data)):
+            route_provider = RoutesProvider("fake.json")
+            result = route_provider.get_route_response_data(
+                "/test/value",
+                request_method="POST",
+                request_body={"payload": 101}
+            )
+            assert result == {"test": 101}
+
+    def test_post_route_data_correct_path_new_field(self, mocker):
+        with mocked_routes_file(mocker, json.dumps(self.get_route_data("."))):
+            route_provider = RoutesProvider("fake.json")
+            result = route_provider.get_route_response_data(
+                "/test/value",
+                request_method="POST",
+                request_body={"payload": {"new_value": 500}}
+            )
+            assert result == {"new_value": 500}
+

@@ -58,12 +58,14 @@ class RouteMatcher:
         tokenized_route = RouteMatcher.tokenize_route_pattern(route_pattern)
 
         for i in range(len(tokenized_route)):
+            if i >= len(tokenized_route):
+                return False
             route_token = tokenized_route[i]
             if route_token == "*":
                 continue
             if route_token == "**":
                 return True  # TODO: What about "/test/**/something" paths? Need to ensure match on all concrete parts
-            if i > len(tokenized_request):
+            if i >= len(tokenized_request):
                 return False
             request_token = tokenized_request[i]
             if not route_token.startswith("{") and route_token != request_token:

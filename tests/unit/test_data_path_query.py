@@ -42,6 +42,11 @@ class TestDataPathQuery:
         query_result = dpq.query_dict(self.dict_to_query)
         assert query_result == "Test"
 
+    def test_root_query(self):
+        dpq = DataPathQuery(".")
+        query_result = dpq.query_dict(self.dict_to_query)
+        assert query_result == self.dict_to_query
+
     def test_empty_query(self):
         dpq = DataPathQuery("")
         query_result = dpq.query_dict(self.dict_to_query)
