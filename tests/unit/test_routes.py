@@ -77,30 +77,43 @@ class TestRoutesProviderPost:
     def get_route_data(self, find_pattern):
         return {
             "routes": [
-                {"path": "/test", "name": "test_data", "methods": ["GET"], "data": {"test": 100}},
+                {
+                    "path": "/test", "name": "test_data", "methods": ["GET"], "data": {"test": 100}
+                },
                 {
                     "path": "/test/value",
                     "methods": ["POST"],
                     "data": {"reference": {"source": "test_data", "find": find_pattern}}
-                }
-            ]
-        }
-
-    def setup_method(self):
-
-        self.route_data = {
-            "routes": [
-                {"path": "/test", "name": "test_data", "methods": ["GET"], "data": {"test": 100}},
+                },
                 {
-                    "path": "/test/value",
-                    "methods": ["POST"],
-                    "data": {"reference": {"source": "test_data", "find": "test"}}
+                    "path": "/items",
+                    "name": "item_data",
+                    "methods": ["GET"],
+                    "data": {
+                        "name": "item_list",
+                        "items": [
+                            {"id": 100, "value": "Item 1"},
+                            {"id": 200, "value": "Item 2"},
+                            {"id": 300, "value": "Item 3"}
+                        ]
+                    }
+                },
+                {
+                    "path": "/items/{id}",
+                    "name": "item_data_by_id",
+                    "methods": ["GET", "POST"],
+                    "data": {
+                        "reference": {
+                            "source": "item_data",
+                            "find": "items[id={id}]"
+                        }
+                    }
                 }
             ]
         }
 
     def test_post_route_data_correct_path_update_scalar(self, mocker):
-        with mocked_routes_file(mocker, json.dumps(self.route_data)):
+        with mocked_routes_file(mocker, json.dumps(self.get_route_data("test"))):
             route_provider = RoutesProvider("fake.json")
             result = route_provider.get_route_response_data(
                 "/test/value",
@@ -118,4 +131,25 @@ class TestRoutesProviderPost:
                 request_body={"payload": {"new_value": 500}}
             )
             assert result == {"new_value": 500}
+
+    # def test_post_route_data_new_list_item(self, mocker):
+    #     with mocked_routes_file(mocker, json.dumps(self.get_route_data("."))):
+    #         route_provider = RoutesProvider("fake.json")
+    #         get_items_result = route_provider.get_route_response_data(
+    #             "/items",
+    #             request_method="GET"
+    #         )
+    #         assert len(get_items_result.get("items")) == 3
+    #         get_item_result = route_provider.get_route_response_data(
+    #             "/items/100",
+    #             request_method="GET"
+    #         )
+    #         assert get_item_result.get("value") == "Item 1"
+    #         post_item_result = route_provider.get_route_response_data(
+    #             "/items/100",
+    #             request_method="POST",
+    #             request_body={"id": 500, "value": "Item 5"}
+    #         )
+    #         assert post_item_result == {"id": 500, "value": "Item 5"}
+
 

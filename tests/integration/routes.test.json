@@ -3,6 +3,7 @@
         {
             "path": "/friends",
             "name": "friends",
+            "methods": ["GET", "PUT", "DELETE"],
             "data": {
                 "friends": [
                     {
@@ -29,12 +30,61 @@
                             {"member_id":  2, "name": "Edgar"}
                         ]
                     }
-                ]
+                ],
+                "meta": {
+                    "name": "Test data",
+                    "value": 1000
+                }
+            }
+        },
+        {
+            "path": "/friends",
+            "name": "friends_post",
+            "methods": ["POST"],
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "friends"
+                }
+            }
+        },
+        {
+            "path": "/meta",
+            "name": "meta_post",
+            "methods": ["POST"],
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "meta"
+                }
+            }
+        },
+        {
+            "path": "/meta_name",
+            "name": "meta_name_post",
+            "methods": ["POST"],
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "meta.name"
+                }
+            }
+        },
+        {
+            "path": "/friends/{id}/tags",
+            "name": "friends_post_tags",
+            "methods": ["POST"],
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "friends[id={id}].tags"
+                }
             }
         },
         {
             "path": "/friends/{id}",
             "name": "friends_by_id",
+            "methods": ["GET", "POST", "PUT", "DELETE"],
             "default": {
                 "error": true,
                 "message": "Not found"

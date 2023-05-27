@@ -62,7 +62,7 @@ class DataPathQuery:
     def validate_params(self, **kwargs):
         passed_params_set = set(kwargs.keys())
         required_params_set = set(self.get_required_parameter_names())
-        if len(passed_params_set.symmetric_difference(required_params_set)) != 0:
+        if len(required_params_set.difference(passed_params_set)) != 0:
             raise ValueError("Missing required parameters in list query")
         return True
 
@@ -75,6 +75,10 @@ class DataPathQuery:
     def is_root_query(self, **kwargs) -> bool:
         return len(self.get_query_tokens(**kwargs)) == 0
 
+    def get_list_name_and_query_term_from_token(self, token: str) -> typing.List[str]:
+        item_name, list_query = token.split("[", 1)
+        return [item_name, f"[{list_query}"]
+
     def update_dict(self, dict_to_update: dict, update_data: typing.Any, **kwargs) -> dict:
         self.validate_params(**kwargs)
         query_pieces = self.get_query_tokens(**kwargs)
@@ -86,17 +90,27 @@ class DataPathQuery:
             if not result:
                 raise ValueError("Could not find value to update")
             if self.is_list_query_term(query_piece):
-                # TODO: This logic is a bit gross, use cleaner pattern matching
-                item_name, list_query = query_piece.split("[", 1)
+                item_name, list_query = self.get_list_name_and_query_term_from_token(query_piece)
                 try:
-                    result = self.resolve_list_query_term(result.get(item_name), f"[{list_query}", **kwargs)
+                    result = self.resolve_list_query_term(result.get(item_name), list_query, **kwargs)
                 except ValueError:
                     return {}
             else:
                 result = self.resolve_dict_query_term(result, query_piece, **kwargs)
 
-        # last piece is important since it is what ultimately should be updated
-        result[last_piece] = update_data
+        if result and last_piece in result and isinstance(result[last_piece], list):
+            # Introspecting the types of data here to make a guess at whether we are posting a new "entity"
+            # or replacing a field value. Life would be easier if we draw a clear line between PUT and POST behaviors.
+            # ie POST will ALWAYS append to arrays, PUT will always replace (may seem backwards but bear in mind that
+            # POSTing will primarily be done against entity list routes where it makes sense that it should append).
+            # May be most cleanly resolved by adding new route properties, perhaps defining array/dict behavior with
+            # append/extend rules. Requires more routes but gives more control.
+            if len(result[last_piece]) > 0 and isinstance(result[last_piece][0], dict):
+                result[last_piece].append(update_data)
+            else:
+                result[last_piece] = update_data
+        else:
+            result[last_piece] = update_data
 
         return dict_to_update
 
@@ -153,7 +167,7 @@ class DataMutator:
         self.query_path = query_path
 
     def get_data(self, **kwargs) -> dict:
-        base_data = self.data_ref_provider(**kwargs)  # TODO: respect query path and pull appropriate data
+        base_data = self.data_ref_provider()  # TODO: respect query path and pull appropriate data
         data_path = DataPathQuery(self.query_path)
         return data_path.query_dict(base_data, copy=False, **kwargs)
 
@@ -167,9 +181,10 @@ class DataMutator:
 
         next_to_last_query_path = ".".join(self.query_path.split(".")[:-1])
         next_to_last_data_path = DataPathQuery(next_to_last_query_path)
-        base_data = next_to_last_data_path.query_dict(self.data_ref_provider(**kwargs), copy=False, **kwargs)
+        # base_data = next_to_last_data_path.query_dict(self.data_ref_provider(), copy=False, **kwargs)
 
-        return data_path.update_dict(base_data, new_data, **kwargs)
+        updated_data_source = data_path.update_dict(self.data_ref_provider(), new_data, **kwargs)
+        return next_to_last_data_path.query_dict(updated_data_source, **kwargs)
 
     def delete(self) -> None:
         return self.delete_fn()

@@ -9,7 +9,7 @@ def route_provider():
     return RoutesProvider(os.path.join(os.path.dirname(__file__), "routes.test.json"))
 
 
-class TestRoutesProvider:
+class TestRoutesProviderGet:
 
     def setup_method(self):
         with open(os.path.join(os.path.dirname(__file__), "routes.test.json"), "r") as f:
@@ -17,7 +17,7 @@ class TestRoutesProvider:
 
     def test_routes_basic_fetch(self, route_provider):
         result = route_provider.get_route_response_data("/friends")
-        assert set(result.keys()) == {"friends", "groups"}
+        assert set(result.keys()) == {"friends", "groups", "meta"}
         assert self.raw_data.get("routes")[0].get("data") == result
 
     def test_route_reference(self, route_provider):
@@ -39,5 +39,114 @@ class TestRoutesProvider:
     def test_unknown_subpath_of_known_route(self, route_provider):
         result = route_provider.get_route_response_data("/friends/10/something")
         assert result == {"error": True, "message": "Not found"}
+
+
+class TestRoutesProviderPost:
+
+    def setup_method(self):
+        with open(os.path.join(os.path.dirname(__file__), "routes.test.json"), "r") as f:
+            self.raw_data = json.loads(f.read())
+
+    def test_post_json_to_data_list(self, route_provider):
+        payload = {
+            "id": 3,
+            "first_name": "Robert",
+            "last_name": "Stevenson",
+            "friend_since": "1850-11-13",
+            "tags": ["old", "nautical", "spooky"]
+        }
+        result = route_provider.get_route_response_data(
+            "/friends",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("friends")[-1] == payload
+
+    def test_post_json_to_json(self, route_provider):
+        payload = {
+            "name": "New test data",
+            "value": 5000,
+            "new_field": True
+        }
+        result = route_provider.get_route_response_data(
+            "/meta",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("meta") == payload
+
+    def test_post_scalar_to_scalar(self, route_provider):  # TODO: Seems identical to what "PUT" should do?
+        payload = "Brand new value"
+        result = route_provider.get_route_response_data(
+            "/meta_name",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("name") == payload
+
+    def test_post_scalar_to_json(self, route_provider):
+        payload = "Brand new value"
+        result = route_provider.get_route_response_data(
+            "/meta",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("meta") == payload
+
+    def test_post_json_to_scalar(self, route_provider):
+        payload = {"value": "Brand new value"}
+        result = route_provider.get_route_response_data(
+            "/meta_name",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("name") == payload
+
+    def test_post_list_to_list(self, route_provider):
+        payload = [
+            {
+                "name": "New item"
+            }
+        ]
+        result = route_provider.get_route_response_data(
+            "/friends",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("friends")[-1] == payload
+
+    def test_post_list_to_json(self, route_provider):
+        payload = ["new", "tag", "values"]
+        result = route_provider.get_route_response_data(
+            "/friends/1/tags",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("tags") == payload
+
+    def test_post_scalar_to_list(self, route_provider):
+        payload = "new value"
+        result = route_provider.get_route_response_data(
+            "/friends",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("friends")[-1] == payload
 
 
