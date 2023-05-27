@@ -1,9 +1,7 @@
 {
-    "routes": [
+    "data_groups": [
         {
-            "path": "/friends",
-            "name": "friends",
-            "methods": ["GET", "PUT", "DELETE"],
+            "group_name": "friends",
             "data": {
                 "friends": [
                     {
@@ -34,6 +32,19 @@
                 "meta": {
                     "name": "Test data",
                     "value": 1000
+                }
+            }
+        }
+    ],
+    "routes": [
+        {
+            "path": "/friends",
+            "name": "friends",
+            "methods": ["GET", "PUT", "DELETE"],
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "."
                 }
             }
         },

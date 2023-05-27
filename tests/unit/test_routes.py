@@ -15,14 +15,25 @@ def mocked_routes_file(mocker, return_data='{}'):
 @pytest.fixture
 def route_data_with_reference_path():
     data = {
+        "data_groups": [
+            {
+                "group_name": "values",
+                "data": {
+                    "items": [
+                        {"id": 5, "value": "test"}
+                    ]
+                }
+            }
+        ],
         "routes": [
             {
                 "path": "/test",
                 "name": "values",
                 "data": {
-                    "items": [
-                        {"id": 5, "value": "test"}
-                    ]
+                    "reference": {
+                        "source": "values",
+                        "find": "."
+                    }
                 }
             },
             {
@@ -53,7 +64,15 @@ class TestRoutesProviderGet:
             assert default_route.get_data(RouteRequest("/")) == {'error': True, 'message': 'Not found'}
 
     def test_get_route_data_correct_path(self, mocker):
-        with mocked_routes_file(mocker, '{"routes": [{"path": "/test", "data": {"test": 100}}]}'):
+        route_data = {
+            "data_groups": [
+                {"group_name": "test_data", "data": {"test": 100}}
+            ],
+            "routes": [
+                {"path": "/test", "data": {"reference": {"source": "test_data", "find": "."}}}
+            ]
+        }
+        with mocked_routes_file(mocker, json.dumps(route_data)):
             route_provider = RoutesProvider("fake.json")
             result = route_provider.get_route_response_data("/test", request_method="GET")
             assert result == {"test": 100}
@@ -76,9 +95,34 @@ class TestRoutesProviderPost:
 
     def get_route_data(self, find_pattern):
         return {
+            "data_groups": [
+                {
+                    "group_name": "item_data",
+                    "data": {
+                        "name": "item_list",
+                        "items": [
+                            {"id": 100, "value": "Item 1"},
+                            {"id": 200, "value": "Item 2"},
+                            {"id": 300, "value": "Item 3"}
+                        ]
+                    }
+                },
+                {
+                    "group_name": "test_data",
+                    "data": {"test": 100}
+                }
+            ],
             "routes": [
                 {
-                    "path": "/test", "name": "test_data", "methods": ["GET"], "data": {"test": 100}
+                    "path": "/test",
+                    "name": "test_data_get",
+                    "methods": ["GET"],
+                    "data": {
+                        "reference": {
+                            "source": "test_data",
+                            "find": "."
+                        }
+                    }
                 },
                 {
                     "path": "/test/value",
@@ -87,15 +131,13 @@ class TestRoutesProviderPost:
                 },
                 {
                     "path": "/items",
-                    "name": "item_data",
+                    "name": "item_data_get",
                     "methods": ["GET"],
                     "data": {
-                        "name": "item_list",
-                        "items": [
-                            {"id": 100, "value": "Item 1"},
-                            {"id": 200, "value": "Item 2"},
-                            {"id": 300, "value": "Item 3"}
-                        ]
+                        "reference": {
+                            "source": "item_data",
+                            "find": "."
+                        }
                     }
                 },
                 {

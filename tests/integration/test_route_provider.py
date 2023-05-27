@@ -18,7 +18,7 @@ class TestRoutesProviderGet:
     def test_routes_basic_fetch(self, route_provider):
         result = route_provider.get_route_response_data("/friends")
         assert set(result.keys()) == {"friends", "groups", "meta"}
-        assert self.raw_data.get("routes")[0].get("data") == result
+        assert self.raw_data.get("data_groups")[0].get("data") == result
 
     def test_route_reference(self, route_provider):
         assert route_provider.get_route_response_data("/friends/1").get("first_name") == "Stephen"

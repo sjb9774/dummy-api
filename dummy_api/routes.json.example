@@ -1,8 +1,7 @@
 {
-    "routes": [
+    "data_groups": [
         {
-            "path": "/friends",
-            "name": "friends",
+            "group_name": "friends",
             "data": {
                 "friends": [
                     {
@@ -20,6 +19,18 @@
                         "tags": ["old", "spooky"]
                     }
                 ]
+            }
+        }
+    ],
+    "routes": [
+        {
+            "path": "/friends",
+            "name": "friends",
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "."
+                }
             }
         },
         {

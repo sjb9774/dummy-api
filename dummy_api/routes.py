@@ -36,6 +36,7 @@ class RoutesProvider:
         self.file_path = file_path
         self.raw_route_data = self.get_data_file_contents(self.file_path)
         self.main_data_store = MutableDataStore()
+        self.populate_data_groups()
         self.routes = self.build_routes()
 
     @staticmethod
@@ -43,15 +44,16 @@ class RoutesProvider:
         with open(file_path, "r") as f:
             return json.loads(f.read())
 
+    def populate_data_groups(self):
+        for group_dict in self.raw_route_data.get("data_groups", []):
+            self.main_data_store.add_data_group(group_dict.get("group_name"), group_dict.get("data"))
+
     def build_routes(self) -> typing.List[Route]:
         routes = []
         for route_config_entry in self.raw_route_data.get("routes", []):
             path = route_config_entry.get("path")
             name = route_config_entry.get("name")
             route_data = route_config_entry.get("data")
-            # TODO: Improve delineation between simple "data" routes and reference routes
-            if not route_data.get("reference"):  # not a reference, has raw data to provide
-                self.main_data_store.add_data_group(name, route_data)
 
             group_name = route_data.get("reference", {}).get("source", name)
             query_path = route_data.get("reference", {}).get("find", "")
