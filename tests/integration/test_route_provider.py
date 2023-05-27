@@ -149,4 +149,29 @@ class TestRoutesProviderPost:
         )
         assert result.get("friends")[-1] == payload
 
+    def test_post_field_update_multi_parameter_refernce(self, route_provider):  # TODO: Should be relegated to PUT?
+        payload = "New Value"
+        result = route_provider.get_route_response_data(
+            "/groups/100/members/1",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("name") == payload
+
+    def test_post_json_to_reference_route(self, route_provider):
+        payload = {
+            "value": 100,
+            "name": "New Value"
+        }
+        result = route_provider.get_route_response_data(
+            "/friends/1",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+        assert result.get("friends")[0] == payload
+
 

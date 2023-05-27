@@ -82,6 +82,17 @@
             }
         },
         {
+            "path": "/groups/{group_id}/members/{member_id}",
+            "name": "group_members_name_post",
+            "methods": ["POST"],
+            "data": {
+                "reference": {
+                    "source": "friends",
+                    "find": "groups[id={group_id}].members[member_id={member_id}].name"
+                }
+            }
+        },
+        {
             "path": "/friends/{id}",
             "name": "friends_by_id",
             "methods": ["GET", "POST", "PUT", "DELETE"],

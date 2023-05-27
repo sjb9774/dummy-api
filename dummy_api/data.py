@@ -98,6 +98,13 @@ class DataPathQuery:
             else:
                 result = self.resolve_dict_query_term(result, query_piece, **kwargs)
 
+        if self.is_list_query_term(last_piece):
+            item_name, list_query = self.get_list_name_and_query_term_from_token(last_piece)
+            item: dict = self.resolve_list_query_term(result.get(item_name), list_query, **kwargs)
+            item.clear()  # POST
+            item.update(update_data)
+            return dict_to_update
+
         if result and last_piece in result and isinstance(result[last_piece], list):
             # Introspecting the types of data here to make a guess at whether we are posting a new "entity"
             # or replacing a field value. Life would be easier if we draw a clear line between PUT and POST behaviors.
