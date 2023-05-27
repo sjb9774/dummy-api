@@ -3,3 +3,4 @@ __pycache__
 routes.json
 .pytest_cache
 .idea
+*routes.json
