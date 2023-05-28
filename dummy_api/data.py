@@ -7,6 +7,7 @@ class DataPathQuery:
     LIST_QUERY_PARAMETER_REGEX = r"\[(?P<query>(?P<field>\w+)=(?P<value>[^\]]+))\]"
     LIST_QUERY_PARAMETER_CONSTRAINT_REGEX = r"\[(?P<query>(?P<field>\w+)=(?P<value>\{[^\]]+\}))\]"
     LIST_QUERY_SPLIT_REGEX = r"([\w_]+(?:\[[^\]]+])?)(?:\.|$)"
+    KEY_QUERY_REGEX = r"(?P<key_value>\{[\w\d_]+\})"
 
     def __init__(self, query_string: str):
         self.query_string = query_string
@@ -121,6 +122,18 @@ class DataPathQuery:
 
         return dict_to_update
 
+    def is_key_query_term(self, query_piece) -> bool:
+        return bool(re.search(self.KEY_QUERY_REGEX, query_piece))
+
+    def get_key_query_pieces(self, query_piece) -> str:
+        m = re.match(self.KEY_QUERY_REGEX, query_piece)
+        if m is None:
+            raise ValueError("Could not parse key value out of string")
+        return m.group("key_value")
+
+    def resolve_key_query_term(self, dict_to_query: dict, key_value_term: str, **kwargs) -> typing.Any:
+        return dict_to_query.get(kwargs.get(key_value_term.strip("{}")))
+
     def query_dict(self, dict_to_query: dict, copy=True, **kwargs):
         self.validate_params(**kwargs)
 
@@ -136,6 +149,9 @@ class DataPathQuery:
                     result = self.resolve_list_query_term(result.get(item_name), f"[{list_query}", **kwargs)
                 except ValueError:
                     return None
+            elif self.is_key_query_term(query_piece):
+                item_name, key_value = self.get_key_query_pieces(query_piece)
+                result = self.resolve_key_query_term(result.get(item_name), key_value, **kwargs)
             else:
                 result = self.resolve_dict_query_term(result, query_piece, **kwargs)
         return result

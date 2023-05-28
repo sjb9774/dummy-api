@@ -92,6 +92,33 @@ class TestDataPathQuery:
         query_result = dpq.query_dict(self.dict_to_query)
         assert query_result == "Object 1"
 
+    def test_key_query_static_value(self):
+        dpq = DataPathQuery("meta.{variable}")
+        query_result = dpq.query_dict(self.dict_to_query, variable="name")
+        assert query_result == "Test Dict"
+
+    def test_list_query_with_key_query(self):
+        dpq = DataPathQuery("objects_lists[id={list_id}].{list_key}")
+        query_result = dpq.query_dict(self.dict_to_query, list_id=200, list_key="name")
+        assert query_result == "Object List 2"
+
+    def test_multi_key_query(self):
+        dpq = DataPathQuery("{key_1}.{key_2}")
+        query_result = dpq.query_dict(self.dict_to_query, key_1="meta", key_2="name")
+        assert query_result == "Test Dict"
+
+    def test_entirely_parameterized_query(self):
+        dpq = DataPathQuery("{key_1}[id={id}].{key_2}[name={name}].{key_3}")
+        query_result = dpq.query_dict(
+            self.dict_to_query,
+            key_1="objects_lists",
+            id=100,
+            key_2="list",
+            name="Object 1",
+            key_3="name"
+        )
+        assert query_result == "Object 1"
+
 
 class TestDataPathUpdate:
 
