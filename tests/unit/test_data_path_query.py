@@ -199,3 +199,38 @@ class TestDataPathUpdate:
         dpq = DataPathQuery("does.not.exist")
         with pytest.raises(ValueError):
             dpq.update_dict(self.dict_to_update, "any value")
+
+    def test_update_key_query_field_under_key(self):
+        dpq = DataPathQuery("{param}.name")
+        result = dpq.update_dict(self.dict_to_update, "New name", param="meta")
+        assert result.get("meta").get("name") == "New name"
+
+    def test_update_key_query_key_under_field_preexisting(self):
+        dpq = DataPathQuery("meta.{param}")
+        result = dpq.update_dict(self.dict_to_update, "New name 2", param="name")
+        assert result.get("meta").get("name") == "New name 2"
+
+    def test_update_key_query_under_field_new(self):
+        dpq = DataPathQuery("meta.{param}")
+        result = dpq.update_dict(self.dict_to_update, "New value", param="new_field")
+        assert result.get("meta").get("new_field") == "New value"
+
+    def test_update_key_query_then_static_list_query(self):
+        dpq = DataPathQuery("{param_1}[id=1].name")
+        result = dpq.update_dict(self.dict_to_update, "New name", param_1="items")
+        assert result.get("items")[0].get("name") == "New name"
+
+    def test_update_key_query_then_parameterized_list_query(self):
+        dpq = DataPathQuery("{param_1}[id={id}].name")
+        result = dpq.update_dict(self.dict_to_update, "New name", param_1="items", id=1)
+        assert result.get("items")[0].get("name") == "New name"
+
+    def test_update_static_list_query_then_key_query(self):
+        dpq = DataPathQuery("items[id=1].{param_1}")
+        result = dpq.update_dict(self.dict_to_update, "New name", param_1="name")
+        assert result.get("items")[0].get("name") == "New name"
+
+    def test_update_parameterized_list_query_then_key_query(self):
+        dpq = DataPathQuery("items[id={id}].{param_1}")
+        result = dpq.update_dict(self.dict_to_update, "New name", id=1, param_1="name")
+        assert result.get("items")[0].get("name") == "New name"
