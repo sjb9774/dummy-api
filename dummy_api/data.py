@@ -222,11 +222,11 @@ class MutableDataStore:
         self.data_resolvers = {}
         self.data_groups = {}
 
-    def build_data_resolver(self, name: str, query_path: str = "") -> DataResolver:
+    def build_data_resolver(self, name: str, query_path: str = "", default_data: typing.Any = None) -> DataResolver:
         def data_resolver_fn(**kwargs) -> typing.Any:
             return self.data_groups.get(name)
 
-        resolver = DataResolver(name, data_resolver_fn, query_path)
+        resolver = DataResolver(name, data_resolver_fn, query_path, default=default_data)
         return resolver
 
     def add_data_group(self, name: str, data: dict):

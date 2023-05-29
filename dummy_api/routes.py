@@ -59,7 +59,8 @@ class RoutesProvider:
             query_path = route_data.get("reference", {}).get("find", "")
             resolver = self.main_data_store.build_data_resolver(
                 group_name,
-                query_path
+                query_path,
+                default_data=route_config_entry.get("default")
             )  # build resolver that may pull from another data source
             mutator = self.main_data_store.get_group_mutator(group_name, query_path)
             # add resolver under its own name so it can also be referenced
@@ -90,7 +91,8 @@ class RoutesProvider:
     def handle_request(self, request: RouteRequest) -> typing.Any:
         for route in self.routes:
             if route.can_handle_request(request):
-                return route.handle_request(request) or RoutesProvider.get_default_response_data()
+                result = route.handle_request(request)
+                return RoutesProvider.get_default_response_data() if result is None else result
 
     def get_route_response_data(self, request_path, request_method=None, query_parameters=None,
                                 request_body=None) -> typing.Any:

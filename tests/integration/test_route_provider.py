@@ -175,3 +175,53 @@ class TestRoutesProviderPost:
         assert result.get("friends")[0] == payload
 
 
+class TestDynamicRoute:
+
+    def setup_method(self):
+        with open(os.path.join(os.path.dirname(__file__), "routes.test.json"), "r") as f:
+            self.raw_data = json.loads(f.read())
+
+    def test_get_empty_data_default(self, route_provider):
+        result = route_provider.get_route_response_data(
+            "/data/entities",
+            request_method="GET"
+        )
+        assert result == {}
+
+    def test_create_and_fetch_json_data(self, route_provider):
+        payload = {"value": 100}
+        result_1 = route_provider.get_route_response_data(
+            "/data/entities",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+
+        assert result_1.get("entities") == payload
+        result_2 = route_provider.get_route_response_data(
+            "/data/entities",
+            request_method="GET"
+        )
+
+        assert result_2 == payload
+
+    def test_create_entity_list_and_fetch_by_id(self, route_provider: RoutesProvider):
+        payload = [{"id": 1, "name": "Stephen", "value": "Test"}]
+        result_1 = route_provider.get_route_response_data(
+            "/data/entities",
+            request_method="POST",
+            request_body={
+                "payload": payload
+            }
+        )
+
+        assert result_1.get("entities") == payload
+
+        result_2 = route_provider.get_route_response_data(
+            "/data/entities/1",
+            request_method="GET"
+        )
+
+        assert result_2 == payload[0]
+

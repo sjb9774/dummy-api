@@ -34,9 +34,36 @@
                     "value": 1000
                 }
             }
+        },
+        {
+            "group_name": "dynamic_data",
+            "data": {}
         }
     ],
     "routes": [
+        {
+            "path": "/data/{dynamic_route}",
+            "name": "dynamic_data_route",
+            "default": {},
+            "methods": ["GET", "POST"],
+            "data": {
+                "reference": {
+                    "source": "dynamic_data",
+                    "find": "{dynamic_route}"
+                }
+            }
+        },
+        {
+            "path": "/data/{dynamic_route/{id}",
+            "name": "dynamic_route_by_id",
+            "methods": ["GET"],
+            "data": {
+                "reference": {
+                    "source": "dynamic_data",
+                    "find": "{dynamic_route}[id={id}]"
+                }
+            }
+        },
         {
             "path": "/friends",
             "name": "friends",
